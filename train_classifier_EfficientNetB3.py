@@ -69,7 +69,7 @@ def resize_and_pad_collate(batch, target_height=64):
 
 device = 'cuda:0'
 #device = 'cpu'
-batch_size = 128
+batch_size = 16
 num_epochs = 100
 transform = TF.Compose([TF.ToTensor()])
 train_dataset = torchvision.datasets.ImageFolder(root='./data/train/single', transform=transform)
@@ -77,7 +77,7 @@ val_dataset = torchvision.datasets.ImageFolder(root='./data/valid/single', trans
 train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=resize_and_pad_collate, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=resize_and_pad_collate, shuffle=True)
 
-network = torchvision.models.mobilenet_v3_small(pretrained=False).to(device)
+network = torchvision.models.efficientnet_b3().to(device)
 
 criterion = torch.nn.CrossEntropyLoss()
 # Freeze original weights if you only want to train the new head
@@ -85,9 +85,9 @@ criterion = torch.nn.CrossEntropyLoss()
 #    param.requires_grad = False
 
 # Replace the classifier (usually the last layer in model.classifier)
-num_ftrs = network.classifier[0].in_features
+num_ftrs = network.classifier[1].in_features
 network.classifier = torch.nn.Linear(num_ftrs, 10).to(device) # Example: 10 classes
-network.load_state_dict(torch.load("./best_classifier.pth", map_location=device))
+
 optimizer = torch.optim.Adam(network.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", factor=0.1, patience=3)
 

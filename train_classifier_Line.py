@@ -25,6 +25,7 @@ import torchvision.transforms as TF
 import torch.nn.functional as F
 from torchvision.utils import make_grid
 from torchvision.ops import sigmoid_focal_loss
+from network import LineClassifier
 
 
 def resize_and_pad_collate(batch, target_height=64):
@@ -77,17 +78,14 @@ val_dataset = torchvision.datasets.ImageFolder(root='./data/valid/single', trans
 train_loader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=resize_and_pad_collate, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=resize_and_pad_collate, shuffle=True)
 
-network = torchvision.models.mobilenet_v3_small(pretrained=False).to(device)
+# network = torchvision.models.mobilenet_v3_small(pretrained=False).to(device)
+network = LineClassifier(nb_classes=10).to(device)
 
 criterion = torch.nn.CrossEntropyLoss()
 # Freeze original weights if you only want to train the new head
 #for param in network.parameters():
 #    param.requires_grad = False
 
-# Replace the classifier (usually the last layer in model.classifier)
-num_ftrs = network.classifier[0].in_features
-network.classifier = torch.nn.Linear(num_ftrs, 10).to(device) # Example: 10 classes
-network.load_state_dict(torch.load("./best_classifier.pth", map_location=device))
 optimizer = torch.optim.Adam(network.parameters(), lr=0.001)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, "max", factor=0.1, patience=3)
 
@@ -123,10 +121,10 @@ for epoch in range(num_epochs):
 
     avg_loss = val_loss / len(val_loader)
     accuracy = 100. * correct / total
-    print(f'Val Loss: {avg_loss:.4f} | Val Acc: {accuracy:.2f}%')
+    print(f'Epoch: {epoch} | Val Loss: {avg_loss:.4f} | Val Acc: {accuracy:.2f}%')
     if accuracy > accuracy_max:
         print(f"At epoch {epoch}, accuracy is {accuracy:.4f}%, better than the record of {accuracy_max:.4f}%")
-        torch.save(network.state_dict(), 'best_classifier.pth')
+        torch.save(network.state_dict(), 'best_classifier_Line.pth')
         accuracy_max = accuracy
     scheduler.step(accuracy)
 
