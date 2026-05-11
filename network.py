@@ -11,7 +11,7 @@ class Backbone(torch.nn.Module):
         self.act = torch.nn.LeakyReLU()
         self.max_pool1 = torch.nn.MaxPool2d(kernel_size=(4,2))
         self.max_pool2 = torch.nn.MaxPool2d(kernel_size=(1,2))
-        self.conv1 = torch.nn.Conv2d(in_channels=1, out_channels=8, kernel_size= (3, 2), stride=(2,1))
+        self.conv1 = torch.nn.Conv2d(in_channels=3, out_channels=8, kernel_size= (3, 2), stride=(2,1))
         self.conv2 = torch.nn.Conv2d(in_channels=8, out_channels=32, kernel_size=(6, 4), padding=(3,1))
         self.conv3 = torch.nn.Conv2d(in_channels=32, out_channels=output_dim, kernel_size=(3, 3), padding=(1,1))
         self.padding_params = 1/8
@@ -278,3 +278,28 @@ class COCR2(torch.nn.Module):
             y = self.head[n](y)
             res += y * scores[:, :, n].unsqueeze(-1)
         return res
+
+
+class LineClassifier(torch.nn.Module):
+    def __init__(self, nb_classes=10):
+        super().__init__()
+        self.backbone = Backbone()
+        self.classification = torch.nn.Linear(self.backbone.output_dim, nb_classes)
+        self.act = torch.nn.ReLU()
+
+    def forward(self, x):
+        x = self.backbone(x)
+        x = self.act(x)
+        x = torch.mean(x, axis=(2, 3))
+        x = self.classification(x)
+        return x
+    
+    def save(self, folder):
+        os.makedirs(folder, exist_ok=True)
+        torch.save(self.backbone.state_dict(), os.path.join(folder, 'backbone.pth'))
+        torch.save(self.classification.state_dict(), os.path.join(folder, 'classification.pth'))
+    
+    def load(self, folder):
+        self.backbone.load_state_dict(torch.load(os.path.join(folder, 'backbone.pth')))
+        self.classification.load_state_dict(torch.load(os.path.join(folder, 'classification.pth')))
+
